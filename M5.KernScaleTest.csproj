@@ -68,6 +68,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Model\SerialPortConnection.cs" />
+    <Compile Include="Model\SerialPortConnectNew.cs" />
     <Compile Include="Model\StopWatchLogger.cs" />
     <Compile Include="Model\WeightResult.cs" />
     <Compile Include="ViewModel\CommandHandler.cs" />
