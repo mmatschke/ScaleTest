@@ -123,8 +123,6 @@ namespace M5.KernScaleTest.Model
                     _weightResult = weightResult.Substring(5).Trim().Replace(".", ",");
                     if (_weightResult.StartsWith("-"))
                         _weightResult = $"{_weightResult.Substring(0, 1)}{_weightResult.Substring(1).Trim()}";
-                    else
-                        _weightResult = _weightResult.Substring(1).Trim();
                 }                    
                 else
                     _weightResult = weightResult;
