@@ -18,18 +18,13 @@ namespace M5.KernScaleTest.ViewModel
         {
             try
             {
-                //TarScale();
+                _serialPortConnection = new SerialPortConnectNew();
+                _serialPortConnection.AllDataReceived += _serialPortConnection_AllDataReceived;
             }
             catch (Exception exp)
             {
-                MessageBox.Show("Waage konnte nicht tarriert werden!");
+                MessageBox.Show($"Fehler: {exp.Message}");
             }
-        }
-
-        private void TarScale()
-        {
-            SerialPortConnection conn = new SerialPortConnection(_comInterface, _amountWeights);
-            conn.TarScale();
         }
         #endregion
 
@@ -43,7 +38,10 @@ namespace M5.KernScaleTest.ViewModel
         private int _countRepeats = 1;
         private float _waitTime = 0.5f;
         private int _currentNumber = 0;
-        private SerialPortConnection _serialPortConnection;
+        private SerialPortConnectNew _serialPortConnection;
+        StopWatchLogger _stopWatchLogger;
+        private bool _automatic = false;
+        private bool _continue;
         #endregion
 
         #region Properties
@@ -62,11 +60,12 @@ namespace M5.KernScaleTest.ViewModel
         }
 
         public int AmountWeights { get => _amountWeights; set => _amountWeights = value; }
-        public string ComInterface { get => _comInterface; set { _comInterface = value; TarScale(); } }
+        public string ComInterface { get => _comInterface; set { _comInterface = value; _serialPortConnection.ComPort = _comInterface; } }
         public long RunningTime { get => _runningTime; set => _runningTime = value; }
         public int CountRepeats { get => _countRepeats; set => _countRepeats = value; }
         public float WaitTime { get => _waitTime; set => _waitTime = value; }
         public int CurrentNumber { get => _currentNumber; set => _currentNumber = value; }
+        public bool Automatic { get => _automatic; set => _automatic = value; }
         #endregion
 
         #region Public Methods
@@ -74,38 +73,41 @@ namespace M5.KernScaleTest.ViewModel
         {
             try
             {
-                _currentNumber++;
-                if (string.IsNullOrEmpty(_comInterface))
+                if(_automatic)
                 {
-                    MessageBox.Show("Bitte prüfen Sie, ob die COM Schnittstelle angegeben ist.");
-                    return;
+                    _continue = false;
+                    for (int i = 0; i < 1048500; i++)
+                    {
+                        GetWeightResult();
+                        Thread.Sleep(2000);
+                    }
                 }
-                Random random = new Random();
-                _amountWeights = random.Next(1, 10);
-                if (_amountWeights < 1)
-                    _amountWeights = 1;
-                _serialPortConnection = new SerialPortConnection(_comInterface, _amountWeights);
-                StopWatchLogger stopWatchLogger = new StopWatchLogger();
-                stopWatchLogger.Start();
-                _serialPortConnection.GetScaleValue("W");
-                stopWatchLogger.Stop();
-                _runningTime = stopWatchLogger.GetRunningTime;
-                WeightResults.Add(new WeightResult
+                else
                 {
-                    Date = DateTime.Now,
-                    AmountWeights = _amountWeights,
-                    RunningTime = _runningTime,
-                    Result = _serialPortConnection.WeightResult,
-                    CurrentNumber = _currentNumber.ToString("0000")
-                });
-                RaisePropertyChanged("WeightResults");
-                RaisePropertyChanged("CurrentNumber");
+                    GetWeightResult();
+                }                                
             }
             catch (Exception exp)
             {
                 MessageBox.Show(exp.Message);
             }
-            SaveResults();
+        }
+
+        private void GetWeightResult()
+        {
+            _currentNumber++;
+            if (string.IsNullOrEmpty(_comInterface))
+            {
+                MessageBox.Show("Bitte prüfen Sie, ob die COM Schnittstelle angegeben ist.");
+                return;
+            }
+            if (_amountWeights < 1)
+                _amountWeights = 1;
+            if (_serialPortConnection == null)
+                _serialPortConnection = new SerialPortConnectNew(_comInterface, _amountWeights);
+            _stopWatchLogger = new StopWatchLogger();
+            _stopWatchLogger.Start();
+            _serialPortConnection.GetScaleValue("W");
         }
         #endregion
 
@@ -130,14 +132,14 @@ namespace M5.KernScaleTest.ViewModel
                 writer.WriteLine(strHeadLine);
                 writer.Close();
             }
-            if(_serialPortConnection != null)
-            {
-                for (int i = 0; i < _serialPortConnection.WeightResults.Count; i++)
-                {
-                    SaveOneLine(i, _serialPortConnection.WeightResults[i], fullFileName);
-                }
-            }
-            SaveOneLine(_amountWeights, _weightResults.Last().Result, fullFileName);
+            //if(_serialPortConnection != null)
+            //{
+            //    for (int i = 0; i < _serialPortConnection.WeightResults.Count; i++)
+            //    {
+            //        SaveOneLine(i, _serialPortConnection.WeightResults[i], fullFileName);
+            //    }
+            //}
+            SaveOneLine(_serialPortConnection.AmountWeights, _weightResults.Last().Result, fullFileName);
         }
 
         private void SaveOneLine(int amount, string result, string fileName)
@@ -216,6 +218,26 @@ namespace M5.KernScaleTest.ViewModel
             {
                 // no action
             }
+        }
+        #endregion
+
+        #region EventHandling
+        private void _serialPortConnection_AllDataReceived(object sender, EventArgs e)
+        {
+            _stopWatchLogger.Stop();
+            _runningTime = _stopWatchLogger.GetRunningTime;
+            WeightResults.Add(new WeightResult
+            {
+                Date = DateTime.Now,
+                AmountWeights = _amountWeights,
+                RunningTime = _runningTime,
+                Result = _serialPortConnection.WeightResult,
+                CurrentNumber = _currentNumber.ToString("0000")
+            });
+            SaveResults();
+            _continue = true;
+            RaisePropertyChanged("WeightResults");
+            RaisePropertyChanged("CurrentNumber");
         }
         #endregion
     }
