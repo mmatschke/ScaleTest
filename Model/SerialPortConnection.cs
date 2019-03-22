@@ -6,13 +6,29 @@ using System.Threading;
 
 namespace M5.KernScaleTest.Model
 {
+    public delegate void ScaleEventHandler(object source, ScaleEventArgs e);
+
+    public class ScaleEventArgs : EventArgs
+    {
+        private string eventInfo;
+        public ScaleEventArgs(string Text)
+        {
+            eventInfo = Text;
+        }
+        public string GetInfo()
+        {
+            return eventInfo;
+        }
+    }
+
     public class SerialPortConnection
     {
         #region Constructor
         public SerialPortConnection()
         {
-
+            InitializePort();
         }
+
 
         public SerialPortConnection(string comPort, int weightCount)
         {
@@ -24,11 +40,13 @@ namespace M5.KernScaleTest.Model
 
         #region Fields
         // Create the serial port with basic settings
-        private SerialPort _port = new SerialPort("COM5", 9600, Parity.None, 8, StopBits.One);
+        private SerialPort _port = new SerialPort();
         private string _comPort = "COM5";
         private int _weightCount = 10;
         private string _weightResult = string.Empty;
         private List<string> _weightResults = new List<string>();
+        private bool _dataReceived = false;
+        private int _workingCounter = 0;
         #endregion
 
         #region Properties
@@ -38,7 +56,7 @@ namespace M5.KernScaleTest.Model
             set
             {
                 _comPort = value;
-                _port = new SerialPort(value, 9600, Parity.Even, 8, StopBits.One);
+                _port.PortName = _comPort;
             }
         }
 
@@ -61,20 +79,57 @@ namespace M5.KernScaleTest.Model
             if (string.IsNullOrEmpty(scaleCommand))
                 return;            
             _weightResults = new List<string>();
-            for (int i = 0; i < _weightCount; i++)
-            {
+            //for (int i = 0; i < _weightCount; i++)
+            //{
+                //_workingCounter = i;
                 if (!_port.IsOpen)
                     _port.Open();
                 _port.Write(scaleCommand);
-                Thread.Sleep(100);
-                PortDataReceived();
-                _weightResults.Add(_weightResult);
-                _port.Close();
-            }                                               
+                _dataReceived = false;
+                do
+                {
+                    // no action waiting of scale result
+                } while (!_dataReceived);
+            //Thread.Sleep(100);
+            //PortDataReceived();
+            //_weightResults.Add(_weightResult);
+            //_port.Close();
+            //}  
+            AllDataReceived(this, new ScaleEventArgs("All data processed"));
         }
         #endregion
 
         #region Private Methods
+        private void InitializePort()
+        {
+            _port.PortName = _comPort;
+            _port.BaudRate = 9600;
+            _port.Parity = Parity.None;
+            _port.DataBits = 8;
+            _port.StopBits = StopBits.One;
+            _port.ReadTimeout = 2000;
+            _port.WriteTimeout = 2000;
+            _port.DataReceived += _port_DataReceived;
+            _port.PinChanged += _port_PinChanged;
+            _port.ErrorReceived += _port_ErrorReceived;
+            _port.Disposed += _port_Disposed;
+        }
+
+        private void _port_Disposed(object sender, EventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void _port_ErrorReceived(object sender, SerialErrorReceivedEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void _port_PinChanged(object sender, SerialPinChangedEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
         private void PortDataReceived()
         {
             string result;
@@ -93,6 +148,21 @@ namespace M5.KernScaleTest.Model
             }
             else
                 _weightResult = "Result is null or empty | 0,0 g";
+        }
+        #endregion
+
+        #region EventHandle
+        public event ScaleEventHandler AllDataReceived;
+
+        private void _port_DataReceived(object sender, SerialDataReceivedEventArgs e)
+        {
+            int intBuffer;
+            intBuffer = _port.BytesToRead;
+            byte[] byteBuffer = new byte[intBuffer];
+            _port.Read(byteBuffer, 0, intBuffer);
+            PortDataReceived();
+            _weightResults.Add(_weightResult);
+            _dataReceived = true;
         }
         #endregion
     }
