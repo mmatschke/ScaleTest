@@ -132,13 +132,13 @@ namespace M5.KernScaleTest.ViewModel
                 writer.WriteLine(strHeadLine);
                 writer.Close();
             }
-            if(_serialPortConnection != null)
-            {
-                for (int i = 0; i < _serialPortConnection.WeightResults.Count; i++)
-                {
-                    SaveOneLine(i, _serialPortConnection.WeightResults[i], fullFileName);
-                }
-            }
+            //if(_serialPortConnection != null)
+            //{
+            //    for (int i = 0; i < _serialPortConnection.WeightResults.Count; i++)
+            //    {
+            //        SaveOneLine(i, _serialPortConnection.WeightResults[i], fullFileName);
+            //    }
+            //}
             SaveOneLine(_serialPortConnection.AmountWeights, _weightResults.Last().Result, fullFileName);
         }
 
