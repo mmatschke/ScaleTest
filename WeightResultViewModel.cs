@@ -40,6 +40,8 @@ namespace M5.KernScaleTest.ViewModel
         private int _currentNumber = 0;
         private SerialPortConnectNew _serialPortConnection;
         StopWatchLogger _stopWatchLogger;
+        private bool _automatic = false;
+        private bool _continue;
         #endregion
 
         #region Properties
@@ -63,6 +65,7 @@ namespace M5.KernScaleTest.ViewModel
         public int CountRepeats { get => _countRepeats; set => _countRepeats = value; }
         public float WaitTime { get => _waitTime; set => _waitTime = value; }
         public int CurrentNumber { get => _currentNumber; set => _currentNumber = value; }
+        public bool Automatic { get => _automatic; set => _automatic = value; }
         #endregion
 
         #region Public Methods
@@ -70,27 +73,41 @@ namespace M5.KernScaleTest.ViewModel
         {
             try
             {
-                _currentNumber++;
-                if (string.IsNullOrEmpty(_comInterface))
+                if(_automatic)
                 {
-                    MessageBox.Show("Bitte prüfen Sie, ob die COM Schnittstelle angegeben ist.");
-                    return;
+                    _continue = false;
+                    for (int i = 0; i < 1048500; i++)
+                    {
+                        GetWeightResult();
+                        Thread.Sleep(2000);
+                    }
                 }
-                Random random = new Random();
-                _amountWeights = random.Next(1, 10);
-                if (_amountWeights < 1)
-                    _amountWeights = 1;
-                if(_serialPortConnection == null)
-                    _serialPortConnection = new SerialPortConnectNew(_comInterface, _amountWeights);
-                _stopWatchLogger = new StopWatchLogger();
-                _stopWatchLogger.Start();
-                _serialPortConnection.GetScaleValue("W");                
+                else
+                {
+                    GetWeightResult();
+                }                                
             }
             catch (Exception exp)
             {
                 MessageBox.Show(exp.Message);
             }
-            SaveResults();
+        }
+
+        private void GetWeightResult()
+        {
+            _currentNumber++;
+            if (string.IsNullOrEmpty(_comInterface))
+            {
+                MessageBox.Show("Bitte prüfen Sie, ob die COM Schnittstelle angegeben ist.");
+                return;
+            }
+            if (_amountWeights < 1)
+                _amountWeights = 1;
+            if (_serialPortConnection == null)
+                _serialPortConnection = new SerialPortConnectNew(_comInterface, _amountWeights);
+            _stopWatchLogger = new StopWatchLogger();
+            _stopWatchLogger.Start();
+            _serialPortConnection.GetScaleValue("W");
         }
         #endregion
 
@@ -217,6 +234,8 @@ namespace M5.KernScaleTest.ViewModel
                 Result = _serialPortConnection.WeightResult,
                 CurrentNumber = _currentNumber.ToString("0000")
             });
+            SaveResults();
+            _continue = true;
             RaisePropertyChanged("WeightResults");
             RaisePropertyChanged("CurrentNumber");
         }
